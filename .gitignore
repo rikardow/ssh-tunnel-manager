@@ -10,3 +10,9 @@ config.yml-*
 icons/robi*
 icons/binge*
 icons/nodeport*
+
+# Virtual Env
+venv/
+
+# IDE files
+.idea/
