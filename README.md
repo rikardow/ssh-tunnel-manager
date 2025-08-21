@@ -11,13 +11,15 @@ You can download the standalone executable from the [Release](https://github.com
 ## Installation (From Source)
 
 * Install dependencies: `pip install -r requirements.txt`
-* Create a config: `cp config.example.yml config.yml`
 * Run the app: `python3 app.py`
+* The app will automatically create the configuration directory at `~/.ssh-tunnel-manager/`
 * You can modify `sshtunnelmgr.desktop` and put in `~/.local/share/application` to create a app menu shortcut
 
 ## Configuration
 
-A sample configuration file provide as `config.example.yml`. Here is one sample host entry.
+The application stores configuration in `~/.ssh-tunnel-manager/config.yml`. On first run, it will be created automatically with a sample configuration.
+
+A sample configuration file is also provided as `config.example.yml`. Here is one sample host entry:
 
 ```yaml
 rabbitmq:
@@ -37,6 +39,15 @@ The key `browser_open` is optional. If provided, it will open the provided URL i
 
 The application saves the tunnel information into a `dict` and can `kill` it when the `Stop` button is clicked.
 
+### Adding New Tunnels
+
+You can add new tunnel configurations directly from the GUI using the "Add" button. This will open a dialog where you can enter:
+- Tunnel name
+- Remote address (e.g., localhost:3306)
+- Local port
+- Proxy host (e.g., user@server)
+- Browser URL (optional)
+
 ## SSH bind on Privileged Ports
 
 Binding on privileged ports will fail unless the user/program has administrative access.
@@ -49,9 +60,20 @@ sudo setcap CAP_NET_BIND_SERVICE=+eip /usr/bin/ssh
 
 ## Icons
 
-If you put image files (png/jpg/bmp) in `./icons/` with the same filename as the `name` field of tunnel configuration, it will appear as icon for that specific entry.
+The application looks for custom icons in the following locations (in order):
+1. `~/.ssh-tunnel-manager/icons/` (user directory)
+2. `./icons/` (application directory)
 
-For example, the tunnel identifier is `kubernetes`, so `./icons/kubernetes.png` will be set as the form's icon.
+If you put image files (png/jpg/bmp) with the same filename as the tunnel name, it will appear as icon for that specific entry.
+
+For example, if the tunnel identifier is `kubernetes`, then `kubernetes.png` will be used as the icon.
+
+You can also specify a custom icon in the configuration:
+```yaml
+my_tunnel:
+  icon: custom_icon.png
+  # ... other config
+```
 
 ## Migration
 
@@ -60,5 +82,4 @@ If you are migrating from older versions of this tool, please change all `local_
 ## TODO
 
 * Gracefully close SSH session instead of `kill`
-* Allow adding/editing/deleting hosts using the GUI
 * Store the config in `QSettings` instead of local yml file

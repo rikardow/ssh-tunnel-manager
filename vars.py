@@ -14,6 +14,7 @@ class LANG:
     ALREADY_RUNNING = "SSH Tunnel Manager is already running"
     OOPS = "Oops!"
     CONF_NOT_FOUND = F"Config file not found. Creating default configuration in {CONFIG_DIR}"
+    ADD_NEW_TUNNEL = "Add New Tunnel"
 
 class KEYS:
     REMOTE_ADDRESS = "remote_address"

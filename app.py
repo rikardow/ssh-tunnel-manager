@@ -14,7 +14,7 @@ import time
 import yaml
 from PyQt5.QtCore import QProcess, Qt, QUrl, QSharedMemory
 from PyQt5.QtGui import QIcon, QDesktopServices, QPixmap
-from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QApplication, QGridLayout, QDialog, QMessageBox
+from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QApplication, QGridLayout, QDialog, QMessageBox, QSpinBox, QVBoxLayout, QHBoxLayout
 from deepdiff import DeepDiff
 from urllib.parse import urlparse
 
@@ -198,13 +198,24 @@ class TunnelManager(QWidget):
             self.tunnels.append(tunnel)
             self.grid.addWidget(tunnel, i, 0)
         
+        button_layout = QHBoxLayout()
+
+        self.add_button = QPushButton(LANG.ADD)
+        self.add_button.setIcon(QIcon(ICONS.TUNNEL))
+        self.add_button.setFocusPolicy(Qt.NoFocus)
+        self.add_button.clicked.connect(self.do_add_tunnel)
+        button_layout.addWidget(self.add_button)
+
         self.kill_button = QPushButton(LANG.KILL_SSH)
         self.kill_button.setIcon(QIcon(ICONS.KILL_SSH))
         self.kill_button.setFocusPolicy(Qt.NoFocus)
         self.kill_button.clicked.connect(self.do_killall_ssh)
-        
-        self.grid.addWidget(self.kill_button, i+1, 0)
-        
+        button_layout.addWidget(self.kill_button)
+
+        button_widget = QWidget()
+        button_widget.setLayout(button_layout)
+        self.grid.addWidget(button_widget, i+1, 0)
+
         self.setLayout(self.grid)
         self.resize(10, 10)
         self.setWindowTitle(LANG.TITLE)
@@ -218,7 +229,38 @@ class TunnelManager(QWidget):
             os.system(CMDS.SSH_KILL_WIN)
         else:
             os.system(CMDS.SSH_KILL_NIX)
-            
+
+    def do_add_tunnel(self):
+        dialog = AddTunnelDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            tunnel_name = dialog.get_tunnel_name()
+            if not tunnel_name:
+                QMessageBox.warning(self, LANG.OOPS, "Tunnel name cannot be empty!")
+                return
+
+            if tunnel_name in self.data:
+                QMessageBox.warning(self, LANG.OOPS, "Tunnel name already exists!")
+                return
+
+            tunnel_data = dialog.get_tunnel_data()
+            self.data[tunnel_name] = tunnel_data
+
+            tunnel = Tunnel(tunnel_name, tunnel_data)
+            tunnel.original_key = tunnel_name
+            self.tunnels.append(tunnel)
+
+            row = len(self.tunnels) - 1
+            self.grid.addWidget(tunnel, row, 0)
+
+            button_widget = self.grid.itemAtPosition(row + 1, 0).widget()
+            self.grid.removeWidget(button_widget)
+            self.grid.addWidget(button_widget, row + 1, 0)
+
+            self.resize(10, 10)
+
+            with open(CONF_FILE, "w") as fp:
+                yaml.dump(self.data, fp)
+
     def closeEvent(self, event):
         data = {}
         for tunnel in self.tunnels:
@@ -237,7 +279,69 @@ class TunnelManager(QWidget):
                 for config in sorted(backup_configs, reverse=True)[10:]:
                     os.remove(config)
         event.accept()
-    
+
+class AddTunnelDialog(QDialog):
+    def __init__(self, parent):
+        super(AddTunnelDialog, self).__init__(parent)
+
+        self.setWindowTitle(LANG.ADD_NEW_TUNNEL)
+        self.setModal(True)
+        self.resize(400, 250)
+
+        layout = QVBoxLayout(self)
+
+        form_layout = QGridLayout()
+
+        form_layout.addWidget(QLabel("Tunnel Name:"), 0, 0)
+        self.name_edit = QLineEdit()
+        form_layout.addWidget(self.name_edit, 0, 1)
+
+        form_layout.addWidget(QLabel("Remote Address:"), 1, 0)
+        self.remote_address_edit = QLineEdit()
+        self.remote_address_edit.setPlaceholderText("localhost:3306")
+        form_layout.addWidget(self.remote_address_edit, 1, 1)
+
+        form_layout.addWidget(QLabel("Local Port:"), 2, 0)
+        self.local_port_spin = QSpinBox()
+        self.local_port_spin.setRange(1, 65535)
+        self.local_port_spin.setValue(8080)
+        form_layout.addWidget(self.local_port_spin, 2, 1)
+
+        form_layout.addWidget(QLabel("Proxy Host:"), 3, 0)
+        self.proxy_host_edit = QLineEdit()
+        self.proxy_host_edit.setPlaceholderText("user@server")
+        form_layout.addWidget(self.proxy_host_edit, 3, 1)
+
+        form_layout.addWidget(QLabel("Browser Open:"), 4, 0)
+        self.browser_open_edit = QLineEdit()
+        self.browser_open_edit.setPlaceholderText("http://localhost:8080")
+        form_layout.addWidget(self.browser_open_edit, 4, 1)
+
+        layout.addLayout(form_layout)
+
+        button_layout = QHBoxLayout()
+
+        self.ok_button = QPushButton("OK")
+        self.ok_button.clicked.connect(self.accept)
+        button_layout.addWidget(self.ok_button)
+
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(self.cancel_button)
+
+        layout.addLayout(button_layout)
+
+    def get_tunnel_data(self):
+        return {
+            KEYS.REMOTE_ADDRESS: self.remote_address_edit.text(),
+            KEYS.LOCAL_PORT: self.local_port_spin.value(),
+            KEYS.PROXY_HOST: self.proxy_host_edit.text(),
+            KEYS.BROWSER_OPEN: self.browser_open_edit.text()
+        }
+
+    def get_tunnel_name(self):
+        return self.name_edit.text().strip()
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     

@@ -25,3 +25,4 @@ kubernetes:
   local_port: 8443
   proxy_host: demo-bastion
   remote_address: 10.10.10.40:8443
+
