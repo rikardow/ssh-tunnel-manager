@@ -23,7 +23,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          libgl1-mesa-glx \
+          libgl1-mesa-dri \
+          libglib2.0-0 \
           libxkbcommon-x11-0 \
           libxcb-xinerama0 \
           libxcb-cursor0 \
@@ -38,6 +39,9 @@ jobs:
           libxcb-image0 \
           libxcb1 \
           libx11-6 \
+          libqt5gui5 \
+          libqt5core5a \
+          libqt5widgets5 \
           xvfb
     
     - name: Install Python dependencies
