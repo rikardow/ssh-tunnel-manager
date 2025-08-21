@@ -1,14 +1,27 @@
-gitlab:
+cogitlab:
+  name: "GitLab Server"
+  icon: "gitlab"
   browser_open: https://gitlab.example.com
   local_port: 443
   proxy_host: demo-bastion
   remote_address: 10.10.10.10:443
 postgresql:
+  name: "PostgreSQL Database"
+  icon: "database"
   local_port: 5432
   proxy_host: demo-bastion
   remote_address: 10.10.10.20:9999
 rabbitmq:
+  name: "RabbitMQ Management"
+  icon: "rabbitmq"
   browser_open: http://127.0.0.1
   local_port: 15672
   proxy_host: demo-bastion
   remote_address: 10.10.10.30:15672
+kubernetes:
+  name: "K8s Dashboard"
+  icon: "kubernetes"
+  browser_open: https://127.0.0.1:8443
+  local_port: 8443
+  proxy_host: demo-bastion
+  remote_address: 10.10.10.40:8443

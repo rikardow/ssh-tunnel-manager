@@ -16,7 +16,9 @@ class KEYS:
     LOCAL_PORT = "local_port"
     PROXY_HOST = "proxy_host"
     BROWSER_OPEN = "browser_open"
-    
+    NAME = "name"
+    ICON = "icon"
+
 class ICONS:
     TUNNEL = ":icons/tunnel.png"
     START = ":icons/start.png"

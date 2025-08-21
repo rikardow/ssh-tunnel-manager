@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/opt/ssh-tunnel-manager/venv/bin/python3
 
 # -*- coding: utf-8 -*-
 
@@ -32,6 +32,8 @@ class TunnelConfig(QDialog):
         self.ui = Ui_TunnelConfig()
         self.ui.setupUi(self)
         
+        self.original_data = data
+
         self.ui.remote_address.setText(data.get(KEYS.REMOTE_ADDRESS))
         self.ui.proxy_host.setText(data.get(KEYS.PROXY_HOST))
         self.ui.browser_open.setText(data.get(KEYS.BROWSER_OPEN))
@@ -54,12 +56,19 @@ class TunnelConfig(QDialog):
         cb.setText(self.ui.ssh_command.text(), mode=cb.Clipboard)
         
     def as_dict(self):
-        return {
+        result = {
             KEYS.REMOTE_ADDRESS: self.ui.remote_address.text(),
             KEYS.PROXY_HOST: self.ui.proxy_host.text(),
             KEYS.BROWSER_OPEN: self.ui.browser_open.text(),
             KEYS.LOCAL_PORT: self.ui.local_port.value(),
         }
+
+        if KEYS.NAME in self.original_data:
+            result[KEYS.NAME] = self.original_data[KEYS.NAME]
+        if KEYS.ICON in self.original_data:
+            result[KEYS.ICON] = self.original_data[KEYS.ICON]
+
+        return result
 
 class Tunnel(QWidget):
     def __init__(self, name, data):
@@ -71,14 +80,27 @@ class Tunnel(QWidget):
         self.tunnelconfig = TunnelConfig(self, data)
         self.tunnelconfig.setWindowTitle(name)
         self.tunnelconfig.setModal(True)
-        self.ui.name.setText(name)
-        
-        self.tunnelconfig.icon = F"./icons/{name}.png"
-        
-        if not os.path.exists(self.tunnelconfig.icon):
-          self.tunnelconfig.icon = ICONS.TUNNEL
-        
-        self.ui.icon.setPixmap(QPixmap(self.tunnelconfig.icon))
+
+        display_name = data.get(KEYS.NAME, name)
+        self.ui.name.setText(display_name)
+
+        custom_icon = data.get(KEYS.ICON)
+        if custom_icon:
+            if os.path.exists(custom_icon):
+                icon_path = custom_icon
+            elif os.path.exists(f"./icons/{custom_icon}"):
+                icon_path = f"./icons/{custom_icon}"
+            else:
+                if os.path.exists(f"./icons/{custom_icon}.png"):
+                    icon_path = f"./icons/{custom_icon}.png"
+                else:
+                    icon_path = ICONS.TUNNEL
+        else:
+            icon_path = f"./icons/{name}.png"
+            if not os.path.exists(icon_path):
+                icon_path = ICONS.TUNNEL
+
+        self.ui.icon.setPixmap(QPixmap(icon_path))
         self.ui.action_tunnel.clicked.connect(self.do_tunnel)
         self.ui.action_settings.clicked.connect(self.tunnelconfig.show)
         self.ui.action_open.clicked.connect(self.do_open_browser)
@@ -130,6 +152,7 @@ class TunnelManager(QWidget):
         
         for i, name in enumerate(sorted(self.data.keys())):
             tunnel = Tunnel(name, self.data[name])
+            tunnel.original_key = name  # Store original key for saving
             self.tunnels.append(tunnel)
             self.grid.addWidget(tunnel, i, 0)
         
@@ -157,9 +180,9 @@ class TunnelManager(QWidget):
     def closeEvent(self, event):
         data = {}
         for tunnel in self.tunnels:
-            name = tunnel.ui.name.text()
-            data[name] = tunnel.tunnelconfig.as_dict()
-        
+            original_key = getattr(tunnel, 'original_key', tunnel.ui.name.text())
+            data[original_key] = tunnel.tunnelconfig.as_dict()
+
         changed = DeepDiff(self.data, data, ignore_order=True)
         
         if changed:
