@@ -5,25 +5,77 @@
 __author__ = "Md. Minhazul Haque"
 __license__ = "GPLv3"
 
-from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QApplication, QGridLayout, QDialog, QMessageBox
-from PyQt5.QtCore import QProcess, Qt, QUrl, QSharedMemory
-from PyQt5.QtGui import QIcon, QDesktopServices, QPixmap
-
-from urllib.parse import urlparse
-from deepdiff import DeepDiff
-
-import sys
-import yaml
-import shutil
-import time
 import glob
 import os
 import requests
+import shutil
+import sys
+import time
+import yaml
+from PyQt5.QtCore import QProcess, Qt, QUrl, QSharedMemory
+from PyQt5.QtGui import QIcon, QDesktopServices, QPixmap
+from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QApplication, QGridLayout, QDialog, QMessageBox
+from deepdiff import DeepDiff
+from urllib.parse import urlparse
 
 from tunnel import Ui_Tunnel
 from tunnelconfig import Ui_TunnelConfig
-from vars import CONF_FILE, LANG, KEYS, ICONS, CMDS
-import icons
+from vars import CONF_FILE, CONFIG_DIR, ICONS_DIR, LANG, KEYS, ICONS, CMDS
+
+
+def initialize_config():
+    if not os.path.exists(CONFIG_DIR):
+        os.makedirs(CONFIG_DIR)
+
+    if not os.path.exists(ICONS_DIR):
+        os.makedirs(ICONS_DIR)
+
+    if not os.path.exists(CONF_FILE):
+        current_config = os.path.join(os.path.dirname(__file__), "config.yml")
+        if os.path.exists(current_config):
+            shutil.copy2(current_config, CONF_FILE)
+        else:
+            default_config = {
+                "example": {
+                    "remote_address": "localhost:22",
+                    "local_port": 2222,
+                    "proxy_host": "user@server",
+                    "browser_open": ""
+                }
+            }
+            with open(CONF_FILE, "w") as fp:
+                yaml.dump(default_config, fp)
+
+    icons_source = os.path.join(os.path.dirname(__file__), "icons")
+    if os.path.exists(icons_source):
+        for icon_file in os.listdir(icons_source):
+            if icon_file.endswith(('.png', '.jpg', '.jpeg', '.svg')):
+                source_path = os.path.join(icons_source, icon_file)
+                dest_path = os.path.join(ICONS_DIR, icon_file)
+                if not os.path.exists(dest_path):
+                    shutil.copy2(source_path, dest_path)
+
+def get_icon_path(icon_name):
+    if not icon_name:
+        return ICONS.TUNNEL
+
+    user_icon_path = os.path.join(ICONS_DIR, icon_name)
+    if os.path.exists(user_icon_path):
+        return user_icon_path
+
+    user_icon_png = os.path.join(ICONS_DIR, f"{icon_name}.png")
+    if os.path.exists(user_icon_png):
+        return user_icon_png
+
+    local_icon_path = os.path.join("./icons", icon_name)
+    if os.path.exists(local_icon_path):
+        return local_icon_path
+
+    local_icon_png = os.path.join("./icons", f"{icon_name}.png")
+    if os.path.exists(local_icon_png):
+        return local_icon_png
+
+    return ICONS.TUNNEL
 
 class TunnelConfig(QDialog):
     def __init__(self, parent, data):
@@ -86,19 +138,9 @@ class Tunnel(QWidget):
 
         custom_icon = data.get(KEYS.ICON)
         if custom_icon:
-            if os.path.exists(custom_icon):
-                icon_path = custom_icon
-            elif os.path.exists(f"./icons/{custom_icon}"):
-                icon_path = f"./icons/{custom_icon}"
-            else:
-                if os.path.exists(f"./icons/{custom_icon}.png"):
-                    icon_path = f"./icons/{custom_icon}.png"
-                else:
-                    icon_path = ICONS.TUNNEL
+            icon_path = get_icon_path(custom_icon)
         else:
-            icon_path = f"./icons/{name}.png"
-            if not os.path.exists(icon_path):
-                icon_path = ICONS.TUNNEL
+            icon_path = get_icon_path(name)
 
         self.ui.icon.setPixmap(QPixmap(icon_path))
         self.ui.action_tunnel.clicked.connect(self.do_tunnel)
@@ -208,14 +250,17 @@ if __name__ == '__main__':
         mb.setWindowTitle(LANG.OOPS)
         mb.setStandardButtons(QMessageBox.Close)
         mb.show()
-    elif not os.path.exists(CONF_FILE):
-        mb = QMessageBox()
-        mb.setIcon(QMessageBox.Information)
-        mb.setText(LANG.CONF_NOT_FOUND)
-        mb.setWindowTitle(LANG.OOPS)
-        mb.setStandardButtons(QMessageBox.Close)
-        mb.show()
-    else:        
-        tm = TunnelManager()
-            
+    else:
+        initialize_config()
+
+        if not os.path.exists(CONF_FILE):
+            mb = QMessageBox()
+            mb.setIcon(QMessageBox.Information)
+            mb.setText(LANG.CONF_NOT_FOUND)
+            mb.setWindowTitle(LANG.OOPS)
+            mb.setStandardButtons(QMessageBox.Close)
+            mb.show()
+        else:
+            tm = TunnelManager()
+
     sys.exit(app.exec_())
