@@ -8,6 +8,7 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+import icons
 
 
 class Ui_Tunnel(object):

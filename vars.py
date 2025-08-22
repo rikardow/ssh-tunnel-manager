@@ -29,6 +29,7 @@ class ICONS:
     START = ":icons/start.png"
     STOP = ":icons/stop.png"
     KILL_SSH = ":icons/kill.png"
+    ADD = ":icons/add.png"
 
 class CMDS:    
     SSH = "ssh"

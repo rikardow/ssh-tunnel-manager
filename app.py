@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 from tunnel import Ui_Tunnel
 from tunnelconfig import Ui_TunnelConfig
 from vars import CONF_FILE, CONFIG_DIR, ICONS_DIR, LANG, KEYS, ICONS, CMDS
+import icons
 
 
 def initialize_config():
@@ -192,6 +193,7 @@ class TunnelManager(QWidget):
         self.grid = QGridLayout(self)
         self.tunnels = []
         
+        i = 0  # Inicializar i antes del bucle
         for i, name in enumerate(sorted(self.data.keys())):
             tunnel = Tunnel(name, self.data[name])
             tunnel.original_key = name  # Store original key for saving
@@ -201,7 +203,7 @@ class TunnelManager(QWidget):
         button_layout = QHBoxLayout()
 
         self.add_button = QPushButton(LANG.ADD)
-        self.add_button.setIcon(QIcon(ICONS.TUNNEL))
+        self.add_button.setIcon(QIcon(ICONS.ADD))
         self.add_button.setFocusPolicy(Qt.NoFocus)
         self.add_button.clicked.connect(self.do_add_tunnel)
         button_layout.addWidget(self.add_button)
