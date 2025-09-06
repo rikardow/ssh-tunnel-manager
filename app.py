@@ -14,7 +14,7 @@ import time
 import yaml
 from PyQt5.QtCore import QProcess, Qt, QUrl, QSharedMemory
 from PyQt5.QtGui import QIcon, QDesktopServices, QPixmap
-from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QApplication, QGridLayout, QDialog, QMessageBox, QSpinBox, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QApplication, QGridLayout, QDialog, QMessageBox, QSpinBox, QVBoxLayout, QHBoxLayout, QSystemTrayIcon, QMenu, QAction
 from deepdiff import DeepDiff
 from urllib.parse import urlparse
 
@@ -79,14 +79,17 @@ def get_icon_path(icon_name):
     return ICONS.TUNNEL
 
 class TunnelConfig(QDialog):
-    def __init__(self, parent, data):
+    def __init__(self, parent, data, original_key):
         super(TunnelConfig, self).__init__(parent)
         
         self.ui = Ui_TunnelConfig()
         self.ui.setupUi(self)
         
         self.original_data = data
+        self.original_key = original_key
 
+        display_name = data.get(KEYS.NAME, original_key.replace('_', ' '))
+        self.ui.tunnel_name.setText(display_name)
         self.ui.remote_address.setText(data.get(KEYS.REMOTE_ADDRESS))
         self.ui.proxy_host.setText(data.get(KEYS.PROXY_HOST))
         self.ui.browser_open.setText(data.get(KEYS.BROWSER_OPEN))
@@ -116,12 +119,21 @@ class TunnelConfig(QDialog):
             KEYS.LOCAL_PORT: self.ui.local_port.value(),
         }
 
-        if KEYS.NAME in self.original_data:
-            result[KEYS.NAME] = self.original_data[KEYS.NAME]
+        tunnel_name = self.ui.tunnel_name.text().strip()
+        if tunnel_name:
+            result[KEYS.NAME] = tunnel_name
+
         if KEYS.ICON in self.original_data:
             result[KEYS.ICON] = self.original_data[KEYS.ICON]
 
         return result
+
+    def get_key(self):
+        import re
+        name = self.ui.tunnel_name.text().strip()
+        if name:
+            return re.sub(r'[^\w\-.]', '_', name)
+        return self.original_key
 
 class Tunnel(QWidget):
     def __init__(self, name, data):
@@ -130,11 +142,11 @@ class Tunnel(QWidget):
         self.ui = Ui_Tunnel()
         self.ui.setupUi(self)
         
-        self.tunnelconfig = TunnelConfig(self, data)
+        self.tunnelconfig = TunnelConfig(self, data, name)
         self.tunnelconfig.setWindowTitle(name)
         self.tunnelconfig.setModal(True)
 
-        display_name = data.get(KEYS.NAME, name)
+        display_name = data.get(KEYS.NAME, name.replace('_', ' '))
         self.ui.name.setText(display_name)
 
         custom_icon = data.get(KEYS.ICON)
@@ -190,13 +202,17 @@ class TunnelManager(QWidget):
         with open(CONF_FILE, "r") as fp:
             self.data = yaml.load(fp, Loader=yaml.FullLoader)
 
+        self.setup_ui()
+        self.setup_tray()
+        
+    def setup_ui(self):
         self.grid = QGridLayout(self)
         self.tunnels = []
         
-        i = 0  # Inicializar i antes del bucle
+        i = 0
         for i, name in enumerate(sorted(self.data.keys())):
             tunnel = Tunnel(name, self.data[name])
-            tunnel.original_key = name  # Store original key for saving
+            tunnel.original_key = name
             self.tunnels.append(tunnel)
             self.grid.addWidget(tunnel, i, 0)
         
@@ -222,7 +238,53 @@ class TunnelManager(QWidget):
         self.resize(10, 10)
         self.setWindowTitle(LANG.TITLE)
         self.setWindowIcon(QIcon(ICONS.TUNNEL))
+        
+    def setup_tray(self):
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            return
+            
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(QIcon(ICONS.TUNNEL))
+        
+        tray_menu = QMenu()
+        
+        show_action = QAction("Show", self)
+        show_action.triggered.connect(self.show)
+        tray_menu.addAction(show_action)
+        
+        tray_menu.addSeparator()
+        
+        add_action = QAction("Add Tunnel", self)
+        add_action.triggered.connect(self.do_add_tunnel)
+        tray_menu.addAction(add_action)
+        
+        kill_action = QAction("Kill All SSH", self)
+        kill_action.triggered.connect(self.do_killall_ssh)
+        tray_menu.addAction(kill_action)
+        
+        tray_menu.addSeparator()
+        
+        quit_action = QAction("Quit", self)
+        quit_action.triggered.connect(self.quit_app)
+        tray_menu.addAction(quit_action)
+        
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.activated.connect(self.tray_icon_activated)
+        self.tray_icon.show()
+        self._first_minimize = True
+        
         self.show()
+        
+    def tray_icon_activated(self, reason):
+        if reason == QSystemTrayIcon.DoubleClick:
+            self.show()
+            self.raise_()
+            self.activateWindow()
+            
+    def quit_app(self):
+        self.save_config()
+        self.do_killall_ssh()
+        QApplication.quit()
     
     def do_killall_ssh(self):
         for tunnel in self.tunnels:
@@ -264,10 +326,32 @@ class TunnelManager(QWidget):
                 yaml.dump(self.data, fp)
 
     def closeEvent(self, event):
+        if hasattr(self, 'tray_icon') and self.tray_icon.isVisible():
+            self.hide()
+            if self._first_minimize:
+                self.tray_icon.showMessage(
+                    "SSH Tunnel Manager",
+                    "Application minimized to tray",
+                    QSystemTrayIcon.Information,
+                    2000
+                )
+                self._first_minimize = False
+            event.ignore()
+        else:
+            self.save_config()
+            event.accept()
+            
+    def save_config(self):
         data = {}
         for tunnel in self.tunnels:
-            original_key = getattr(tunnel, 'original_key', tunnel.ui.name.text())
-            data[original_key] = tunnel.tunnelconfig.as_dict()
+            new_key = tunnel.tunnelconfig.get_key()
+            original_key = getattr(tunnel, 'original_key', new_key)
+            
+            if new_key != original_key and new_key in data:
+                QMessageBox.warning(self, LANG.OOPS, f"Tunnel name '{new_key}' already exists!")
+                continue
+                
+            data[new_key] = tunnel.tunnelconfig.as_dict()
 
         changed = DeepDiff(self.data, data, ignore_order=True)
         
@@ -280,7 +364,7 @@ class TunnelManager(QWidget):
             if len(backup_configs) > 10:
                 for config in sorted(backup_configs, reverse=True)[10:]:
                     os.remove(config)
-        event.accept()
+            self.data = data
 
 class AddTunnelDialog(QDialog):
     def __init__(self, parent):
@@ -342,31 +426,42 @@ class AddTunnelDialog(QDialog):
         }
 
     def get_tunnel_name(self):
-        return self.name_edit.text().strip()
+        name = self.name_edit.text().strip()
+        import re
+        name = re.sub(r'[^\w\-.]', '_', name)
+        return name
+
+def show_message(icon, text):
+    mb = QMessageBox()
+    mb.setIcon(icon)
+    mb.setText(text)
+    mb.setWindowTitle(LANG.OOPS)
+    mb.setStandardButtons(QMessageBox.Close)
+    mb.show()
+    return mb
+
+def start_app():
+    initialize_config()
+    if not os.path.exists(CONF_FILE):
+        show_message(QMessageBox.Information, LANG.CONF_NOT_FOUND)
+    else:
+        return TunnelManager()
+    return None
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     
     sm = QSharedMemory("3866273d-f4d5-4bf3-b27b-772ca7915a61")
     
-    if not sm.create(1):
-        mb = QMessageBox()
-        mb.setIcon(QMessageBox.Information)
-        mb.setText(LANG.ALREADY_RUNNING)
-        mb.setWindowTitle(LANG.OOPS)
-        mb.setStandardButtons(QMessageBox.Close)
-        mb.show()
+    if sm.attach():
+        show_message(QMessageBox.Information, LANG.ALREADY_RUNNING)
+    elif sm.create(1):
+        tm = start_app()
     else:
-        initialize_config()
-
-        if not os.path.exists(CONF_FILE):
-            mb = QMessageBox()
-            mb.setIcon(QMessageBox.Information)
-            mb.setText(LANG.CONF_NOT_FOUND)
-            mb.setWindowTitle(LANG.OOPS)
-            mb.setStandardButtons(QMessageBox.Close)
-            mb.show()
+        sm.detach()
+        if sm.create(1):
+            tm = start_app()
         else:
-            tm = TunnelManager()
+            show_message(QMessageBox.Critical, "Failed to start application. Please restart your system if the issue persists.")
 
     sys.exit(app.exec_())
