@@ -209,15 +209,25 @@ class TunnelManager(QWidget):
         
     def setup_ui(self):
         self.grid = QGridLayout(self)
+        self.grid.setSpacing(5)  # Set consistent spacing
         self.tunnels = []
         
-        i = 0
+        # Add existing tunnels
         for i, name in enumerate(sorted(self.data.keys())):
             tunnel = Tunnel(name, self.data[name])
             tunnel.original_key = name
             self.tunnels.append(tunnel)
             self.grid.addWidget(tunnel, i, 0)
         
+        # Create button layout
+        self.setup_buttons()
+
+        self.setLayout(self.grid)
+        self.resize(10, 10)
+        self.setWindowTitle(LANG.TITLE)
+        self.setWindowIcon(QIcon(ICONS.TUNNEL))
+        
+    def setup_buttons(self):
         button_layout = QHBoxLayout()
 
         self.add_button = QPushButton(LANG.ADD)
@@ -232,14 +242,12 @@ class TunnelManager(QWidget):
         self.kill_button.clicked.connect(self.do_killall_ssh)
         button_layout.addWidget(self.kill_button)
 
-        button_widget = QWidget()
-        button_widget.setLayout(button_layout)
-        self.grid.addWidget(button_widget, i+1, 0)
-
-        self.setLayout(self.grid)
-        self.resize(10, 10)
-        self.setWindowTitle(LANG.TITLE)
-        self.setWindowIcon(QIcon(ICONS.TUNNEL))
+        self.button_widget = QWidget()
+        self.button_widget.setLayout(button_layout)
+        
+        # Add button widget at the end
+        tunnel_count = len(self.tunnels)
+        self.grid.addWidget(self.button_widget, tunnel_count, 0)
         
     def setup_tray(self):
         if QSystemTrayIcon.isSystemTrayAvailable():
@@ -318,16 +326,15 @@ class TunnelManager(QWidget):
             tunnel.original_key = tunnel_name
             self.tunnels.append(tunnel)
 
-            row = len(self.tunnels) - 1
-            self.grid.addWidget(tunnel, row, 0)
-
-            # Safely handle button widget repositioning
-            button_item = self.grid.itemAtPosition(row + 1, 0)
-            if button_item:
-                button_widget = button_item.widget()
-                if button_widget:
-                    self.grid.removeWidget(button_widget)
-                    self.grid.addWidget(button_widget, row + 1, 0)
+            # Remove button widget temporarily
+            self.grid.removeWidget(self.button_widget)
+            
+            # Add new tunnel at the correct position
+            tunnel_row = len(self.tunnels) - 1
+            self.grid.addWidget(tunnel, tunnel_row, 0)
+            
+            # Re-add button widget at the end
+            self.grid.addWidget(self.button_widget, tunnel_row + 1, 0)
 
             self.resize(10, 10)
 
