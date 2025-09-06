@@ -12,17 +12,17 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.13'
     - name: build executable
       run: |
         pip install -r requirements.txt
         pip install pyinstaller
-        pyinstaller --onefile --noconsole --name app-linux.bin app.py
+        pyinstaller --onefile --noconsole --name ssh-tunnel-manager app.py
     - name: upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: linux-build
-        path: dist/app-linux.bin
+        path: dist/ssh-tunnel-manager
 
   build-windows:
     runs-on: windows-latest
@@ -30,17 +30,17 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.13'
     - name: build executable
       run: |
         pip install -r requirements.txt
         pip install pyinstaller
-        pyinstaller --onefile --noconsole --name app-windows.exe app.py
+        pyinstaller --onefile --noconsole --name ssh-tunnel-manager.exe app.py
     - name: upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: windows-build
-        path: dist/app-windows.exe
+        path: dist/ssh-tunnel-manager.exe
 
   upload-release:
     runs-on: ubuntu-latest
@@ -68,24 +68,24 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          ./artifacts/app-linux.bin
-          ./artifacts/app-windows.exe
+          ./artifacts/ssh-tunnel-manager
+          ./artifacts/ssh-tunnel-manager.exe
         name: SSH Tunnel Manager ${{ github.ref_name }}
         body: |
           ## SSH Tunnel Manager ${{ github.ref_name }}
           
           ### Downloads
-          - **app-linux.bin**: Linux executable
-          - **app-windows.exe**: Windows executable
+          - **ssh-tunnel-manager**: Linux executable
+          - **ssh-tunnel-manager.exe**: Windows executable
           
           ### Installation
           #### Linux
-          1. Download `app-linux.bin`
-          2. Make it executable: `chmod +x app-linux.bin`
-          3. Run: `./app-linux.bin`
+          1. Download `ssh-tunnel-manager`
+          2. Make it executable: `chmod +x ssh-tunnel-manager`
+          3. Run: `./ssh-tunnel-manager`
           
           #### Windows
-          1. Download `app-windows.exe`
+          1. Download `ssh-tunnel-manager.exe`
           2. Run the executable
         draft: false
         prerelease: false
