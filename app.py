@@ -108,8 +108,8 @@ class TunnelConfig(QDialog):
         
     def do_copy_ssh_command(self):
         cb = QApplication.clipboard()
-        cb.clear(mode=cb.Mode.Clipboard)
-        cb.setText(self.ui.ssh_command.text(), mode=cb.Mode.Clipboard)
+        cb.clear()
+        cb.setText(self.ui.ssh_command.text())
         
     def as_dict(self):
         result = {
@@ -301,7 +301,7 @@ class TunnelManager(QWidget):
 
     def do_add_tunnel(self):
         dialog = AddTunnelDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             tunnel_name = dialog.get_tunnel_name()
             if not tunnel_name:
                 QMessageBox.warning(self, LANG.OOPS, "Tunnel name cannot be empty!")
@@ -321,9 +321,13 @@ class TunnelManager(QWidget):
             row = len(self.tunnels) - 1
             self.grid.addWidget(tunnel, row, 0)
 
-            button_widget = self.grid.itemAtPosition(row + 1, 0).widget()
-            self.grid.removeWidget(button_widget)
-            self.grid.addWidget(button_widget, row + 1, 0)
+            # Safely handle button widget repositioning
+            button_item = self.grid.itemAtPosition(row + 1, 0)
+            if button_item:
+                button_widget = button_item.widget()
+                if button_widget:
+                    self.grid.removeWidget(button_widget)
+                    self.grid.addWidget(button_widget, row + 1, 0)
 
             self.resize(10, 10)
 
@@ -463,13 +467,17 @@ if __name__ == '__main__':
     sm = QSharedMemory("3866273d-f4d5-4bf3-b27b-772ca7915a61")
     tm = None
     
+    # Try to detach any existing shared memory first
     if sm.attach():
-        show_message(QMessageBox.Icon.Information, LANG.ALREADY_RUNNING)
-    elif sm.create(1):
+        sm.detach()
+    
+    # Create shared memory and start the app
+    if sm.create(1):
         tm = start_app()
         if tm:
             tm.show()
     else:
+        # If create fails, try to detach and create again (handles orphaned shared memory)
         sm.detach()
         if sm.create(1):
             tm = start_app()
@@ -478,4 +486,11 @@ if __name__ == '__main__':
         else:
             show_message(QMessageBox.Icon.Critical, "Failed to start application. Please restart your system if the issue persists.")
 
-    sys.exit(app.exec())
+    # Ensure shared memory is cleaned up on exit
+    try:
+        result = app.exec()
+        sm.detach()
+        sys.exit(result)
+    except:
+        sm.detach()
+        sys.exit(1)
