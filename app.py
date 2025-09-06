@@ -12,9 +12,9 @@ import shutil
 import sys
 import time
 import yaml
-from PyQt5.QtCore import QProcess, Qt, QUrl, QSharedMemory
-from PyQt5.QtGui import QIcon, QDesktopServices, QPixmap
-from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QApplication, QGridLayout, QDialog, QMessageBox, QSpinBox, QVBoxLayout, QHBoxLayout, QSystemTrayIcon, QMenu, QAction
+from PyQt6.QtCore import QProcess, Qt, QUrl, QSharedMemory
+from PyQt6.QtGui import QIcon, QDesktopServices, QPixmap, QAction
+from PyQt6.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QApplication, QGridLayout, QDialog, QMessageBox, QSpinBox, QVBoxLayout, QHBoxLayout, QSystemTrayIcon, QMenu
 from deepdiff import DeepDiff
 from urllib.parse import urlparse
 
@@ -108,8 +108,8 @@ class TunnelConfig(QDialog):
         
     def do_copy_ssh_command(self):
         cb = QApplication.clipboard()
-        cb.clear(mode=cb.Clipboard)
-        cb.setText(self.ui.ssh_command.text(), mode=cb.Clipboard)
+        cb.clear(mode=cb.Mode.Clipboard)
+        cb.setText(self.ui.ssh_command.text(), mode=cb.Mode.Clipboard)
         
     def as_dict(self):
         result = {
@@ -202,6 +202,8 @@ class TunnelManager(QWidget):
         with open(CONF_FILE, "r") as fp:
             self.data = yaml.load(fp, Loader=yaml.FullLoader)
 
+        self._first_minimize = True
+        self.tray_icon = None
         self.setup_ui()
         self.setup_tray()
         
@@ -220,13 +222,13 @@ class TunnelManager(QWidget):
 
         self.add_button = QPushButton(LANG.ADD)
         self.add_button.setIcon(QIcon(ICONS.ADD))
-        self.add_button.setFocusPolicy(Qt.NoFocus)
+        self.add_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.add_button.clicked.connect(self.do_add_tunnel)
         button_layout.addWidget(self.add_button)
 
         self.kill_button = QPushButton(LANG.KILL_SSH)
         self.kill_button.setIcon(QIcon(ICONS.KILL_SSH))
-        self.kill_button.setFocusPolicy(Qt.NoFocus)
+        self.kill_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.kill_button.clicked.connect(self.do_killall_ssh)
         button_layout.addWidget(self.kill_button)
 
@@ -240,46 +242,49 @@ class TunnelManager(QWidget):
         self.setWindowIcon(QIcon(ICONS.TUNNEL))
         
     def setup_tray(self):
-        if not QSystemTrayIcon.isSystemTrayAvailable():
-            return
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            self.tray_icon = QSystemTrayIcon(self)
+            self.tray_icon.setIcon(QIcon(ICONS.TUNNEL))
             
-        self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon(ICONS.TUNNEL))
-        
-        tray_menu = QMenu()
-        
-        show_action = QAction("Show", self)
-        show_action.triggered.connect(self.show)
-        tray_menu.addAction(show_action)
-        
-        tray_menu.addSeparator()
-        
-        add_action = QAction("Add Tunnel", self)
-        add_action.triggered.connect(self.do_add_tunnel)
-        tray_menu.addAction(add_action)
-        
-        kill_action = QAction("Kill All SSH", self)
-        kill_action.triggered.connect(self.do_killall_ssh)
-        tray_menu.addAction(kill_action)
-        
-        tray_menu.addSeparator()
-        
-        quit_action = QAction("Quit", self)
-        quit_action.triggered.connect(self.quit_app)
-        tray_menu.addAction(quit_action)
-        
-        self.tray_icon.setContextMenu(tray_menu)
-        self.tray_icon.activated.connect(self.tray_icon_activated)
-        self.tray_icon.show()
-        self._first_minimize = True
-        
-        self.show()
+            tray_menu = QMenu()
+            
+            show_action = QAction("Show", self)
+            show_action.triggered.connect(self.show)
+            tray_menu.addAction(show_action)
+            
+            tray_menu.addSeparator()
+            
+            add_action = QAction("Add Tunnel", self)
+            add_action.triggered.connect(self.do_add_tunnel)
+            tray_menu.addAction(add_action)
+            
+            kill_action = QAction("Kill All SSH", self)
+            kill_action.triggered.connect(self.do_killall_ssh)
+            tray_menu.addAction(kill_action)
+            
+            tray_menu.addSeparator()
+            
+            quit_action = QAction("Quit", self)
+            quit_action.triggered.connect(self.quit_app)
+            tray_menu.addAction(quit_action)
+            
+            self.tray_icon.setContextMenu(tray_menu)
+            self.tray_icon.activated.connect(self.tray_icon_activated)
+            self.tray_icon.show()
         
     def tray_icon_activated(self, reason):
-        if reason == QSystemTrayIcon.DoubleClick:
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.show()
             self.raise_()
             self.activateWindow()
+        elif reason == QSystemTrayIcon.ActivationReason.Trigger:
+            # Single click support for some desktop environments
+            if self.isVisible():
+                self.hide()
+            else:
+                self.show()
+                self.raise_()
+                self.activateWindow()
             
     def quit_app(self):
         self.save_config()
@@ -326,13 +331,13 @@ class TunnelManager(QWidget):
                 yaml.dump(self.data, fp)
 
     def closeEvent(self, event):
-        if hasattr(self, 'tray_icon') and self.tray_icon.isVisible():
+        if self.tray_icon and self.tray_icon.isVisible():
             self.hide()
             if self._first_minimize:
                 self.tray_icon.showMessage(
                     "SSH Tunnel Manager",
                     "Application minimized to tray",
-                    QSystemTrayIcon.Information,
+                    QSystemTrayIcon.MessageIcon.Information,
                     2000
                 )
                 self._first_minimize = False
@@ -436,14 +441,14 @@ def show_message(icon, text):
     mb.setIcon(icon)
     mb.setText(text)
     mb.setWindowTitle(LANG.OOPS)
-    mb.setStandardButtons(QMessageBox.Close)
+    mb.setStandardButtons(QMessageBox.StandardButton.Close)
     mb.show()
     return mb
 
 def start_app():
     initialize_config()
     if not os.path.exists(CONF_FILE):
-        show_message(QMessageBox.Information, LANG.CONF_NOT_FOUND)
+        show_message(QMessageBox.Icon.Information, LANG.CONF_NOT_FOUND)
     else:
         return TunnelManager()
     return None
@@ -451,17 +456,26 @@ def start_app():
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     
+    # Handle Ctrl+C gracefully
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    
     sm = QSharedMemory("3866273d-f4d5-4bf3-b27b-772ca7915a61")
+    tm = None
     
     if sm.attach():
-        show_message(QMessageBox.Information, LANG.ALREADY_RUNNING)
+        show_message(QMessageBox.Icon.Information, LANG.ALREADY_RUNNING)
     elif sm.create(1):
         tm = start_app()
+        if tm:
+            tm.show()
     else:
         sm.detach()
         if sm.create(1):
             tm = start_app()
+            if tm:
+                tm.show()
         else:
-            show_message(QMessageBox.Critical, "Failed to start application. Please restart your system if the issue persists.")
+            show_message(QMessageBox.Icon.Critical, "Failed to start application. Please restart your system if the issue persists.")
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

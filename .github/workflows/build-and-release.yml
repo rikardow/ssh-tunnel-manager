@@ -15,9 +15,9 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.13'
     
     - name: Install system dependencies
       run: |
@@ -39,9 +39,8 @@ jobs:
           libxcb-image0 \
           libxcb1 \
           libx11-6 \
-          libqt5gui5 \
-          libqt5core5a \
-          libqt5widgets5 \
+          libqt6-base-dev \
+          qt6-base-dev \
           xvfb
     
     - name: Install Python dependencies
@@ -59,9 +58,9 @@ jobs:
           --icon=icons/tunnel.png \
           --add-data "icons:icons" \
           --add-data "*.ui:." \
-          --hidden-import PyQt5.QtCore \
-          --hidden-import PyQt5.QtGui \
-          --hidden-import PyQt5.QtWidgets \
+          --hidden-import PyQt6.QtCore \
+          --hidden-import PyQt6.QtGui \
+          --hidden-import PyQt6.QtWidgets \
           app.py
     
     - name: Create archive
@@ -101,7 +100,7 @@ jobs:
           
           ### Requisitos del sistema
           - Linux x64
-          - Librerías Qt5 (generalmente ya instaladas)
+          - Librerías Qt6 (generalmente ya instaladas)
         draft: false
         prerelease: false
       env:
