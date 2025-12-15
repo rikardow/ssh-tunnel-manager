@@ -14,7 +14,7 @@ import time
 import yaml
 from PyQt6.QtCore import QProcess, Qt, QUrl, QSharedMemory
 from PyQt6.QtGui import QIcon, QDesktopServices, QPixmap, QAction
-from PyQt6.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QApplication, QGridLayout, QDialog, QMessageBox, QSpinBox, QVBoxLayout, QHBoxLayout, QSystemTrayIcon, QMenu
+from PyQt6.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QApplication, QGridLayout, QDialog, QMessageBox, QSpinBox, QVBoxLayout, QHBoxLayout, QSystemTrayIcon, QMenu, QCheckBox
 from deepdiff import DeepDiff
 from urllib.parse import urlparse
 
@@ -41,7 +41,8 @@ def initialize_config():
                     "remote_address": "localhost:22",
                     "local_port": 2222,
                     "proxy_host": "user@server",
-                    "browser_open": ""
+                    "browser_open": "",
+                    "all_interfaces": False
                 }
             }
             with open(CONF_FILE, "w") as fp:
@@ -94,16 +95,19 @@ class TunnelConfig(QDialog):
         self.ui.proxy_host.setText(data.get(KEYS.PROXY_HOST))
         self.ui.browser_open.setText(data.get(KEYS.BROWSER_OPEN))
         self.ui.local_port.setValue(data.get(KEYS.LOCAL_PORT))
-        
+        self.ui.all_interfaces.setChecked(data.get(KEYS.ALL_INTERFACES, False))
+
         self.ui.remote_address.textChanged.connect(self.render_ssh_command)
         self.ui.proxy_host.textChanged.connect(self.render_ssh_command)
         self.ui.local_port.valueChanged.connect(self.render_ssh_command)
+        self.ui.all_interfaces.stateChanged.connect(self.render_ssh_command)
         self.ui.copy.clicked.connect(self.do_copy_ssh_command)
         
         self.render_ssh_command()
     
     def render_ssh_command(self):
-        ssh_command = F"ssh -L 127.0.0.1:{self.ui.local_port.value()}:{self.ui.remote_address.text()} {self.ui.proxy_host.text()}"
+        bind_address = "0.0.0.0" if self.ui.all_interfaces.isChecked() else "127.0.0.1"
+        ssh_command = F"ssh -L {bind_address}:{self.ui.local_port.value()}:{self.ui.remote_address.text()} {self.ui.proxy_host.text()}"
         self.ui.ssh_command.setText(ssh_command)
         
     def do_copy_ssh_command(self):
@@ -117,6 +121,7 @@ class TunnelConfig(QDialog):
             KEYS.PROXY_HOST: self.ui.proxy_host.text(),
             KEYS.BROWSER_OPEN: self.ui.browser_open.text(),
             KEYS.LOCAL_PORT: self.ui.local_port.value(),
+            KEYS.ALL_INTERFACES: self.ui.all_interfaces.isChecked(),
         }
 
         tunnel_name = self.ui.tunnel_name.text().strip()
@@ -163,13 +168,27 @@ class Tunnel(QWidget):
         self.process = None
         
     def do_open_browser(self):
-        browser_open = self.tunnelconfig.ui.browser_open.text()
-        if browser_open:
+        browser_open = self.tunnelconfig.ui.browser_open.text().strip()
+        if not browser_open:
+            return
+
+        try:
             urlobj = urlparse(browser_open)
             local_port = self.tunnelconfig.ui.local_port.value()
-            new_url = urlobj._replace(netloc=F"{urlobj.hostname}:{local_port}").geturl()
+
+            # Si la URL tiene hostname, reemplazar el puerto
+            if urlobj.hostname:
+                new_url = urlobj._replace(netloc=f"{urlobj.hostname}:{local_port}").geturl()
+            else:
+                # Si no tiene hostname (ej: solo "localhost"), construir URL completa
+                new_url = f"http://127.0.0.1:{local_port}"
+
             QDesktopServices.openUrl(QUrl(new_url))
-        
+        except Exception as e:
+            print(f"Error opening browser: {e}")
+            # Intentar con URL simple si falla
+            QDesktopServices.openUrl(QUrl(f"http://127.0.0.1:{self.tunnelconfig.ui.local_port.value()}"))
+
     def do_tunnel(self):
         if self.process:
             self.stop_tunnel()
@@ -404,10 +423,15 @@ class AddTunnelDialog(QDialog):
         form_layout.addWidget(self.remote_address_edit, 1, 1)
 
         form_layout.addWidget(QLabel("Local Port:"), 2, 0)
+        port_layout = QHBoxLayout()
         self.local_port_spin = QSpinBox()
         self.local_port_spin.setRange(1, 65535)
         self.local_port_spin.setValue(8080)
-        form_layout.addWidget(self.local_port_spin, 2, 1)
+        port_layout.addWidget(self.local_port_spin)
+        self.all_interfaces_check = QCheckBox("All Interfaces (0.0.0.0)")
+        port_layout.addWidget(self.all_interfaces_check)
+        port_layout.addStretch()
+        form_layout.addLayout(port_layout, 2, 1)
 
         form_layout.addWidget(QLabel("Proxy Host:"), 3, 0)
         self.proxy_host_edit = QLineEdit()
@@ -438,7 +462,8 @@ class AddTunnelDialog(QDialog):
             KEYS.REMOTE_ADDRESS: self.remote_address_edit.text(),
             KEYS.LOCAL_PORT: self.local_port_spin.value(),
             KEYS.PROXY_HOST: self.proxy_host_edit.text(),
-            KEYS.BROWSER_OPEN: self.browser_open_edit.text()
+            KEYS.BROWSER_OPEN: self.browser_open_edit.text(),
+            KEYS.ALL_INTERFACES: self.all_interfaces_check.isChecked()
         }
 
     def get_tunnel_name(self):

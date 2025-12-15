@@ -14,28 +14,47 @@
    <string>Dialog</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="1" column="0">
+   <item row="0" column="0">
+    <widget class="QLabel" name="label_tunnel_name">
+     <property name="text">
+      <string>Tunnel Name</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1" colspan="2">
+    <widget class="QLineEdit" name="tunnel_name">
+     <property name="font">
+      <font>
+       <family>Monospace</family>
+      </font>
+     </property>
+     <property name="placeholderText">
+      <string>My Tunnel</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
     <widget class="QLabel" name="label_remote_address">
      <property name="text">
       <string>Remote Address</string>
      </property>
     </widget>
    </item>
-   <item row="3" column="0">
+   <item row="4" column="0">
     <widget class="QLabel" name="label_browser_open">
      <property name="text">
       <string>Address to Open</string>
      </property>
     </widget>
    </item>
-   <item row="0" column="0">
+   <item row="1" column="0">
     <widget class="QLabel" name="label_local_port">
      <property name="text">
       <string>Local Port</string>
      </property>
     </widget>
    </item>
-   <item row="4" column="1">
+   <item row="5" column="1">
     <widget class="QLineEdit" name="ssh_command">
      <property name="font">
       <font>
@@ -47,28 +66,28 @@
      </property>
     </widget>
    </item>
-   <item row="4" column="0">
+   <item row="5" column="0">
     <widget class="QLabel" name="label_ssh_command">
      <property name="text">
       <string>SSH Command</string>
      </property>
     </widget>
    </item>
-   <item row="2" column="0">
+   <item row="3" column="0">
     <widget class="QLabel" name="label_proxy_host">
      <property name="text">
       <string>Proxy Host</string>
      </property>
     </widget>
    </item>
-   <item row="4" column="2">
+   <item row="5" column="2">
     <widget class="QPushButton" name="copy">
      <property name="text">
       <string>Copy</string>
      </property>
     </widget>
    </item>
-   <item row="3" column="1" colspan="2">
+   <item row="4" column="1" colspan="2">
     <widget class="QLineEdit" name="browser_open">
      <property name="font">
       <font>
@@ -80,7 +99,7 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="1" colspan="2">
+   <item row="3" column="1" colspan="2">
     <widget class="QLineEdit" name="proxy_host">
      <property name="font">
       <font>
@@ -92,7 +111,7 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="1" colspan="2">
+   <item row="2" column="1" colspan="2">
     <widget class="QLineEdit" name="remote_address">
      <property name="font">
       <font>
@@ -107,7 +126,7 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="0" colspan="3">
+   <item row="6" column="0" colspan="3">
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
       <spacer name="horizontalSpacer">
@@ -134,7 +153,7 @@
      </item>
     </layout>
    </item>
-   <item row="0" column="1" colspan="2">
+   <item row="1" column="1" colspan="2">
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
       <widget class="QSpinBox" name="local_port">
@@ -151,6 +170,13 @@
        </property>
        <property name="value">
         <number>8443</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="all_interfaces">
+       <property name="text">
+        <string>All Interfaces (0.0.0.0)</string>
        </property>
       </widget>
      </item>
@@ -172,6 +198,7 @@
   </layout>
  </widget>
  <tabstops>
+  <tabstop>tunnel_name</tabstop>
   <tabstop>local_port</tabstop>
   <tabstop>remote_address</tabstop>
   <tabstop>proxy_host</tabstop>

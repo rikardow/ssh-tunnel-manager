@@ -23,6 +23,7 @@ class KEYS:
     BROWSER_OPEN = "browser_open"
     NAME = "name"
     ICON = "icon"
+    ALL_INTERFACES = "all_interfaces"
 
 class ICONS:
     TUNNEL = ":icons/tunnel.png"

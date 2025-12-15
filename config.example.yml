@@ -11,6 +11,7 @@ postgresql:
   local_port: 5432
   proxy_host: demo-bastion
   remote_address: 10.10.10.20:9999
+  all_interfaces: true
 rabbitmq:
   name: "RabbitMQ Management"
   icon: "rabbitmq"
