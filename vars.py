@@ -24,6 +24,7 @@ class KEYS:
     NAME = "name"
     ICON = "icon"
     ALL_INTERFACES = "all_interfaces"
+    PROXY_JUMP = "proxy_jump"
 
 class ICONS:
     TUNNEL = ":icons/tunnel.png"

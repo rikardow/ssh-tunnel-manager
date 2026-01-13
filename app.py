@@ -91,11 +91,15 @@ class TunnelConfig(QDialog):
 
         display_name = data.get(KEYS.NAME, original_key.replace('_', ' '))
         self.ui.tunnel_name.setText(display_name)
-        self.ui.remote_address.setText(data.get(KEYS.REMOTE_ADDRESS))
-        self.ui.proxy_host.setText(data.get(KEYS.PROXY_HOST))
-        self.ui.browser_open.setText(data.get(KEYS.BROWSER_OPEN))
-        self.ui.local_port.setValue(data.get(KEYS.LOCAL_PORT))
-        self.ui.all_interfaces.setChecked(data.get(KEYS.ALL_INTERFACES, False))
+        self.ui.remote_address.setText(data.get(KEYS.REMOTE_ADDRESS, ""))
+        self.ui.proxy_host.setText(data.get(KEYS.PROXY_HOST, ""))
+        self.ui.browser_open.setText(data.get(KEYS.BROWSER_OPEN, ""))
+        self.ui.local_port.setValue(data.get(KEYS.LOCAL_PORT, 8080))
+        
+        all_interfaces_value = data.get(KEYS.ALL_INTERFACES)
+        if all_interfaces_value is None:
+            all_interfaces_value = False
+        self.ui.all_interfaces.setChecked(bool(all_interfaces_value))
 
         self.ui.remote_address.textChanged.connect(self.render_ssh_command)
         self.ui.proxy_host.textChanged.connect(self.render_ssh_command)
@@ -107,7 +111,17 @@ class TunnelConfig(QDialog):
     
     def render_ssh_command(self):
         bind_address = "0.0.0.0" if self.ui.all_interfaces.isChecked() else "127.0.0.1"
-        ssh_command = F"ssh -L {bind_address}:{self.ui.local_port.value()}:{self.ui.remote_address.text()} {self.ui.proxy_host.text()}"
+        proxy_host = self.ui.proxy_host.text().strip()
+        remote_address = self.ui.remote_address.text().strip()
+        
+        if ',' in proxy_host:
+            jumps_and_dest = proxy_host.rsplit(',', 1)
+            proxy_jumps = jumps_and_dest[0].strip()
+            destination = jumps_and_dest[1].strip()
+            ssh_command = f"ssh -J {proxy_jumps} -L {bind_address}:{self.ui.local_port.value()}:{remote_address} {destination}"
+        else:
+            ssh_command = f"ssh -L {bind_address}:{self.ui.local_port.value()}:{remote_address} {proxy_host}"
+            
         self.ui.ssh_command.setText(ssh_command)
         
     def do_copy_ssh_command(self):
@@ -116,13 +130,17 @@ class TunnelConfig(QDialog):
         cb.setText(self.ui.ssh_command.text())
         
     def as_dict(self):
+        proxy_host = self.ui.proxy_host.text().strip()
+        
         result = {
             KEYS.REMOTE_ADDRESS: self.ui.remote_address.text(),
-            KEYS.PROXY_HOST: self.ui.proxy_host.text(),
+            KEYS.PROXY_HOST: proxy_host,
             KEYS.BROWSER_OPEN: self.ui.browser_open.text(),
             KEYS.LOCAL_PORT: self.ui.local_port.value(),
-            KEYS.ALL_INTERFACES: self.ui.all_interfaces.isChecked(),
         }
+        
+        all_interfaces_checked = self.ui.all_interfaces.isChecked()
+        result[KEYS.ALL_INTERFACES] = bool(all_interfaces_checked)
 
         tunnel_name = self.ui.tunnel_name.text().strip()
         if tunnel_name:
@@ -435,7 +453,7 @@ class AddTunnelDialog(QDialog):
 
         form_layout.addWidget(QLabel("Proxy Host:"), 3, 0)
         self.proxy_host_edit = QLineEdit()
-        self.proxy_host_edit.setPlaceholderText("user@server")
+        self.proxy_host_edit.setPlaceholderText("user@server or bastion,destination")
         form_layout.addWidget(self.proxy_host_edit, 3, 1)
 
         form_layout.addWidget(QLabel("Browser Open:"), 4, 0)
@@ -463,7 +481,7 @@ class AddTunnelDialog(QDialog):
             KEYS.LOCAL_PORT: self.local_port_spin.value(),
             KEYS.PROXY_HOST: self.proxy_host_edit.text(),
             KEYS.BROWSER_OPEN: self.browser_open_edit.text(),
-            KEYS.ALL_INTERFACES: self.all_interfaces_check.isChecked()
+            KEYS.ALL_INTERFACES: bool(self.all_interfaces_check.isChecked())
         }
 
     def get_tunnel_name(self):

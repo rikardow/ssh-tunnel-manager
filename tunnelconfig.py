@@ -119,6 +119,6 @@ class Ui_TunnelConfig(object):
         self.label_proxy_host.setText(_translate("TunnelConfig", "Proxy Host"))
         self.copy.setText(_translate("TunnelConfig", "Copy"))
         self.browser_open.setPlaceholderText(_translate("TunnelConfig", "https://127.0.0.1:8443"))
-        self.proxy_host.setPlaceholderText(_translate("TunnelConfig", "proxy-host"))
+        self.proxy_host.setPlaceholderText(_translate("TunnelConfig", "user@server or bastion,destination"))
         self.remote_address.setPlaceholderText(_translate("TunnelConfig", "10.10.10.10:443"))
         self.all_interfaces.setText(_translate("TunnelConfig", "All Interfaces (0.0.0.0)"))
