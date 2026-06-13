@@ -255,6 +255,9 @@ class TunnelManager(QWidget):
             tunnel.original_key = name
             self.tunnels.append(tunnel)
             self.grid.addWidget(tunnel, i, 0)
+
+        for tunnel in self.tunnels:
+            tunnel.tunnelconfig.accepted.connect(self.save_config)
         
         # Create button layout
         self.setup_buttons()
@@ -361,6 +364,7 @@ class TunnelManager(QWidget):
 
             tunnel = Tunnel(tunnel_name, tunnel_data)
             tunnel.original_key = tunnel_name
+            tunnel.tunnelconfig.accepted.connect(self.save_config)
             self.tunnels.append(tunnel)
 
             # Remove button widget temporarily
