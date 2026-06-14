@@ -213,24 +213,40 @@ class Tunnel(QWidget):
         else:
             self.start_tunnel()
     
+    def _set_tunnel_running(self, running):
+        if running:
+            self.ui.action_tunnel.setIcon(QIcon(ICONS.STOP))
+        else:
+            self.ui.action_tunnel.setIcon(QIcon(ICONS.START))
+            self.process = None
+
+    def _on_process_error(self, error):
+        if self.sender() == self.process:
+            self._set_tunnel_running(False)
+
+    def _on_process_finished(self, exit_code, exit_status):
+        if self.sender() == self.process:
+            self._set_tunnel_running(False)
+
     def start_tunnel(self):
         params = self.tunnelconfig.ui.ssh_command.text().split(" ")
         
         self.process = QProcess()
+        self.process.errorOccurred.connect(self._on_process_error)
+        self.process.finished.connect(self._on_process_finished)
         self.process.start(params[0], params[1:])
                     
-        self.ui.action_tunnel.setIcon(QIcon(ICONS.STOP))
+        self._set_tunnel_running(True)
         
         self.do_open_browser()
     
     def stop_tunnel(self):
         try:
             self.process.kill()
-            self.process = None
         except:
             pass
         
-        self.ui.action_tunnel.setIcon(QIcon(ICONS.START))
+        self._set_tunnel_running(False)
         
 class TunnelManager(QWidget):
     def __init__(self):
